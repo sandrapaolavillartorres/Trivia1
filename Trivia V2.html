@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trivia de Conocimiento General</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url('https://upload.wikimedia.org/wikipedia/commons/8/84/Metatrons_Cube.svg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 30px;
+      border-radius: 15px;
+      max-width: 600px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+
+    .question {
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+    }
+
+    .options button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #ecf0f1;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .options button.correct {
+      background-color: #2ecc71;
+      color: white;
+    }
+
+    .options button.incorrect {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    .options button:disabled {
+      cursor: default;
+    }
+
+    .next-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      background-color: #3498db;
+      color: white;
+      cursor: not-allowed;
+    }
+
+    .next-btn.active {
+      cursor: pointer;
+      background-color: #2980b9;
+    }
+
+    .result {
+      text-align: center;
+      font-size: 1.2rem;
+    }
+
+    .feedback {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <audio autoplay loop>
+    <source src="https://cdn.pixabay.com/audio/2022/03/26/audio_7c9f9a1a4e.mp3" type="audio/mpeg">
+    Tu navegador no soporta audio HTML5.
+  </audio>
+
+  <div class="container animate__animated animate__fadeIn">
+    <h1>Trivia de Conocimiento General</h1>
+    <div id="quiz">
+      <div class="question" id="question"></div>
+      <div class="options" id="options"></div>
+      <button id="nextBtn" class="next-btn" onclick="nextQuestion()">Siguiente</button>
+    </div>
+    <div id="result" class="result" style="display: none;"></div>
+  </div>
+
+  <script>
+    const questions = [
+      { question: "¿Cuál es el país más grande del mundo?", options: ["China", "Canadá", "Rusia", "Estados Unidos"], answer: 2 },
+      { question: "¿Quién escribió 'Cien años de soledad'?", options: ["Pablo Neruda", "Mario Vargas Llosa", "Gabriel García Márquez", "Julio Cortázar"], answer: 2 },
+      { question: "¿Cuál es el planeta más cercano al sol?", options: ["Tierra", "Mercurio", "Venus", "Marte"], answer: 1 },
+      { question: "¿Qué órgano del cuerpo humano bombea sangre?", options: ["Cerebro", "Pulmones", "Corazón", "Riñones"], answer: 2 },
+      { question: "¿Qué gas necesitamos para respirar?", options: ["Oxígeno", "Hidrógeno", "Nitrógeno", "Dióxido de carbono"], answer: 0 },
+      { question: "¿Cuál es el océano más grande del mundo?", options: ["Atlántico", "Índico", "Ártico", "Pacífico"], answer: 3 },
+      { question: "¿Qué figura tiene tres lados?", options: ["Cuadrado", "Triángulo", "Rectángulo", "Pentágono"], answer: 1 },
+      { question: "¿Cuál es la capital de Francia?", options: ["Madrid", "Londres", "París", "Berlín"], answer: 2 },
+      { question: "¿Qué instrumento tiene cuerdas?", options: ["Flauta", "Violín", "Trompeta", "Batería"], answer: 1 },
+      { question: "¿Qué animal es conocido como el rey de la selva?", options: ["Tigre", "Elefante", "León", "Jaguar"], answer: 2 }
+    ];
+
+    let currentQuestion = 0;
+    let score = 0;
+
+    function speak(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-ES';
+      utterance.rate = 0.85;
+      utterance.pitch = 0.6;
+      const voices = speechSynthesis.getVoices();
+      const voice = voices.find(v => v.lang === 'es-ES' && v.name.toLowerCase().includes('google'))
+                  || voices.find(v => v.lang === 'es-ES');
+      if (voice) utterance.voice = voice;
+      speechSynthesis.speak(utterance);
+    }
+
+    function loadQuestion() {
+      const q = questions[currentQuestion];
+      document.getElementById('question').textContent = q.question;
+      const optionsDiv = document.getElementById('options');
+      optionsDiv.innerHTML = '';
+      document.getElementById('nextBtn').classList.remove('active');
+      document.getElementById('nextBtn').disabled = true;
+
+      q.options.forEach((option, index) => {
+        const btn = document.createElement('button');
+        btn.textContent = option;
+        btn.onclick = () => selectAnswer(index, btn);
+        optionsDiv.appendChild(btn);
+      });
+    }
+
+    function selectAnswer(selectedIndex, button) {
+      const q = questions[currentQuestion];
+      const buttons = document.querySelectorAll('.options button');
+
+      buttons.forEach((btn, index) => {
+        btn.disabled = true;
+        if (index === q.answer) {
+          btn.classList.add('correct');
+        } else if (index === selectedIndex) {
+          btn.classList.add('incorrect');
+        }
+      });
+
+      if (selectedIndex === q.answer) {
+        score++;
+        speak("¡Correcto!");
+      } else {
+        speak(`Incorrecto. La respuesta correcta es ${q.options[q.answer]}`);
+      }
+
+      const nextBtn = document.getElementById('nextBtn');
+      nextBtn.classList.add('active');
+      nextBtn.disabled = false;
+    }
+
+    function nextQuestion() {
+      currentQuestion++;
+      if (currentQuestion < questions.length) {
+        loadQuestion();
+      } else {
+        showResult();
+      }
+    }
+
+    function showResult() {
+      document.getElementById('quiz').style.display = 'none';
+      const resultDiv = document.getElementById('result');
+      resultDiv.style.display = 'block';
+      let feedback;
+      if (score === 10) {
+        feedback = "¡Excelente! Eres un genio del conocimiento general.";
+      } else if (score >= 7) {
+        feedback = "¡Muy bien! Tienes buenos conocimientos.";
+      } else if (score >= 4) {
+        feedback = "No está mal, pero puedes mejorar.";
+      } else {
+        feedback = "Necesitas estudiar un poco más. ¡Ánimo!";
+      }
+      resultDiv.innerHTML = `<p>Tu puntaje: ${score}/10</p><p class="feedback">${feedback}</p>`;
+      speak(`Tu puntaje es ${score} de 10. ${feedback}`);
+    }
+
+    window.speechSynthesis.onvoiceschanged = () => {
+      loadQuestion();
+    };
+  </script>
+</body>
+</html>
